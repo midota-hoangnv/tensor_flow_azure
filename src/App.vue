@@ -19,7 +19,7 @@
       <div>
         <figure>
           <div class="preview-wrapper">
-            <img :src="originalImage" alt=""  ref="originalCaptureImageRef"/>
+            <img :src="originalImage" alt="" ref="originalCaptureImageRef" />
             <canvas class="preview-detect-area" ref="canvasPreviewRef" />
           </div>
           <figcaption>Capture image</figcaption>
@@ -52,6 +52,8 @@ export default {
       originalImage: null,
       canDetect: false,
       predictions: [],
+      animationFixedFrame: false,
+      previousTimestamp: 0,
     };
   },
   mounted() {
@@ -97,10 +99,82 @@ export default {
     },
 
     loadFrame() {
-      requestAnimationFrame(() => {
-        this.drawFixedFrame();
+      requestAnimationFrame((timestamp) => {
+        this.drawFixedFrame(timestamp);
         this.loadFrame();
-      })
+      });
+    },
+
+    drawFixedFrame(timestamp) {
+          // Kiểm tra thời gian đã trôi qua 1 giây
+      if (timestamp - this.previousTimestamp < 1000) return;
+      this.previousTimestamp = timestamp;
+      const ctx = this.$refs.canvasRef.getContext("2d");
+      ctx.canvas.width = ctx.canvas.clientWidth;
+      ctx.canvas.height = ctx.canvas.clientHeight;
+      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+      // Draw the bounding box.
+      ctx.beginPath();
+      // Set line color
+      if (this.animationFixedFrame) {
+        ctx.strokeStyle = "red";
+      } else {
+        ctx.strokeStyle = "blue";
+      }
+
+      // Set line width
+      ctx.lineWidth = 2;
+      const centerX = ctx.canvas.width / 2;
+      const centerY = ctx.canvas.height / 2;
+      const rectangleWidth = 100;
+      const rectangleHeight = 100;
+
+      const topLeft = {
+        x: centerX - rectangleWidth / 2,
+        y: centerY - rectangleHeight / 2,
+        yPosition: "top",
+        xPosition: "left",
+      };
+      const topRight = {
+        x: centerX + rectangleWidth / 2,
+        y: centerY - rectangleHeight / 2,
+        yPosition: "top",
+        xPosition: "right",
+      };
+      const bottomLeft = {
+        x: centerX - rectangleWidth / 2,
+        y: centerY + rectangleHeight / 2,
+        yPosition: "bottom",
+        xPosition: "left",
+      };
+      const bottomRight = {
+        x: centerX + rectangleWidth / 2,
+        y: centerY + rectangleHeight / 2,
+        yPosition: "bottom",
+        xPosition: "right",
+      };
+
+      [topLeft, topRight, bottomLeft, bottomRight].forEach((corner) => {
+        drawCorner(corner);
+      });
+      ctx.stroke();
+      function drawCorner(corner) {
+        ctx.moveTo(corner.x, corner.y);
+        if (corner.xPosition == "left") {
+          ctx.lineTo(corner.x + 15, corner.y);
+        } else {
+          ctx.lineTo(corner.x - 15, corner.y);
+        }
+        ctx.moveTo(corner.x, corner.y);
+        if (corner.yPosition == "top") {
+          ctx.lineTo(corner.x, corner.y + 15);
+        } else {
+          ctx.lineTo(corner.x, corner.y - 15);
+        }
+      }
+      this.animationFixedFrame = !this.animationFixedFrame;
+      ctx.closePath();
     },
 
     getDitectedImageDimension() {
